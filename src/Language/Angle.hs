@@ -169,7 +169,7 @@ sem (Pred name arg) = do
     Left angleDef -> do
       -- All predicates are considered recursive for simplicity
       -- It's correct, but inefficient
-      p <- fixPoint name angleDef
+      p <- semiNaive name angleDef
       argValue <- sem arg
       match p argValue
     Right values -> do
@@ -210,11 +210,14 @@ fixPoint pred angle = do
 
 semiNaive :: String -> Angle -> AngleM Value
 semiNaive pred angle = do
+  -- Another option for the initial run is to set the predicate to `Never`.
+  -- That might be better for code generation.
+  -- This is simpler though.
   set <- collectResults $
           localEnv $
           localPred pred [] $
           sem angle >>= zonk
-  let deltaAngle = derivative pred angle
+  let deltaAngle = simplify (derivative pred angle)
   let semiN prev delta = do
         res <- collectResults $
                 localEnv $
@@ -405,3 +408,10 @@ idb2 :: IDB
 idb2 = Map.fromList [("R",r)]
 test2 :: IO [((Value, Env), Unif)]
 test2 = runAngleM edb2 idb2 (sem (Pred "R" (Pair (Num 1) y)))
+
+r2 :: Angle
+r2 = Choice (Pred "P" (Pair x y)) (Seq (Pred "R" (Pair x z)) (Seq (Pred "R" (Pair z y)) (Pair x y)))
+idb3 :: IDB
+idb3 = Map.fromList [("R",r2)]
+test3 :: IO [((Value, Env), Unif)]
+test3 = runAngleM edb2 idb3 (sem (Pred "R" (Pair (Num 1) y)))
