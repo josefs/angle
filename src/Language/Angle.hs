@@ -277,7 +277,7 @@ match v1 v2 =
 derivative :: String -> Angle -> Angle
 derivative _ Unit = Never
 derivative _ (Num _) = Never
-derivative pred (Pair a1 a2) = Choice (Pair (derivative pred a1) a2) (Pair a1 (derivative pred a2)) -- TODO: is this correct?
+derivative pred (Pair a1 a2) = Choice (Pair (derivative pred a1) a2) (Pair a1 (derivative pred a2))
 derivative pred (Inl a) = Inl (derivative pred a)
 derivative pred (Inr a) = Inr (derivative pred a)
 derivative pred (Arr angles) = Arr (map (derivative pred) angles)
@@ -287,9 +287,9 @@ derivative _ (Var _) = Never
 derivative pred (Pred name arg) =
   if name == pred
     then Pred (name++"Delta") arg
-    else Pred name (derivative pred arg) -- This can be optimized to `never` in some cases
+    else Never
 derivative pred (Seq a1 a2) = Choice (Seq (derivative pred a1) a2) (Seq a1 (derivative pred a2))
-derivative pred (Eq a1 a2) = Choice (Eq (derivative pred a1) a2) (Eq a1 (derivative pred a2)) -- TODO: is this correct?
+derivative pred (Eq a1 a2) = Choice (Eq (derivative pred a1) a2) (Eq a1 (derivative pred a2))
 derivative pred (All a) = All a -- TODO: can this be optimized?
 derivative pred (Elements a) = Elements (derivative pred a)
 derivative _ Never = Never
@@ -356,8 +356,8 @@ eq (Arr a1s) (Arr a2s) =
   if length a1s == length a2s
     then foldr1 seq (zipWith eq a1s a2s)
     else Never
-eq (Choice a b) c = Choice (eq a c) (eq b c)
-eq a (Choice b c) = Choice (eq a b) (eq a c)
+eq (Choice a b) c = Choice (eq a c) (eq b c) -- Duplication of code
+eq a (Choice b c) = Choice (eq a b) (eq a c) -- Duplication of code
 eq Underscore _ = Unit
 eq _ Underscore = Unit
 -- For predicates, we can be more aggressive and check if `arg` and `a` are
@@ -399,7 +399,9 @@ test1 =
 -- Transitive closure
 edb2 :: EDB
 edb2 = Map.fromList [("P",[VPair (VNum 1) (VNum 2), VPair (VNum 2) (VNum 3), VPair (VNum 3) (VNum 4)])]
+r :: Angle
+r = Choice (Pred "P" (Pair x y)) (Seq (Pred "R" (Pair x z)) (Seq (Pred "P" (Pair z y)) (Pair x y)))
 idb2 :: IDB
-idb2 = Map.fromList [("R",Choice (Pred "P" (Pair x y)) (Seq (Pred "R" (Pair x z)) (Seq (Pred "P" (Pair z y)) (Pair x y))))]
+idb2 = Map.fromList [("R",r)]
 test2 :: IO [((Value, Env), Unif)]
 test2 = runAngleM edb2 idb2 (sem (Pred "R" (Pair (Num 1) y)))
