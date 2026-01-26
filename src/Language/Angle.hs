@@ -50,56 +50,61 @@ type EDB = Map String [Value]
 
 type IDB = Map String Angle
 
+data DBs = DBs
+  { edb :: EDB
+  , idb :: IDB
+  }
+
 type Preds = Map String Angle
 
 type Unif = (IntMap Value, Int)
 
 -- The evaluation monad
 
-type AngleM a = ReaderT EDB (ReaderT IDB (StateT Env (StateT Unif (LogicT IO)))) a
+type AngleM a = ReaderT DBs (StateT Env (StateT Unif (LogicT IO))) a
 
 -- EDB takes precedence over IDB. We use that fact in fixpoint computations
 lookupPred :: String -> AngleM (Either Angle [Value])
 lookupPred name = do
-  edb <- ask
-  case Map.lookup name edb of
+  dbe <- asks edb
+  case Map.lookup name dbe of
     Just vs -> return (Right vs)
     Nothing -> do
-      idb <- lift ask
-      case Map.lookup name idb of
+      dbi <- asks idb
+      case Map.lookup name dbi of
         Just angle -> return (Left angle)
         Nothing -> mzero
 
 localPred :: String -> [Value] -> AngleM a -> AngleM a
 localPred name values =
-  local (Map.insert name values)
+  local (\dbs -> dbs { edb = Map.insert name values (edb dbs) })
 
 lookupVar :: String -> AngleM (Maybe Value)
 lookupVar x = do
-  env <- lift $ lift get
+  env <- lift get
   return $ Map.lookup x env
 
 setVar :: String -> Value -> AngleM Value
 setVar x v = do
-  env <- lift $ lift get
-  lift $ lift $ put (Map.insert x v env)
+  env <- lift get
+  lift $ put (Map.insert x v env)
   return v
 
 freshUnifVar :: AngleM Value
 freshUnifVar = do
-  (unifMap,n) <- lift $ lift $ lift get
-  lift $ lift $ lift $ put (unifMap, n+1)
+  (unifMap,n) <- lift $ lift get
+  lift $ lift $ put (unifMap, n+1)
   return (VVar n)
 
 lookupUnif :: Int -> AngleM (Maybe Value)
 lookupUnif x = do
-  (unif,_) <- lift $ lift $ lift get
+  (unif,_) <- lift $ lift get
   return $ IntMap.lookup x unif
 
 setUnifVar :: Int -> Value -> AngleM Value
 setUnifVar x v = do
-  (unifMap,n) <- lift $ lift $ lift get
-  lift $ lift $ lift $ put (IntMap.insert x v unifMap,n)
+  (unifMap,n) <- lift $ lift get
+  lift $ lift $ put (IntMap.insert x v unifMap,n)
   return v
 
 collectResults :: AngleM Value -> AngleM (Set Value)
@@ -113,9 +118,9 @@ collectResults m = do
 
 localEnv :: AngleM a -> AngleM a
 localEnv m = do
-  env <- lift $ lift get
+  env <- lift get
   result <- m
-  lift $ lift $ put env
+  lift $ put env
   return result
 
 expandSet :: Set a -> AngleM a
@@ -125,17 +130,17 @@ runAngleM :: EDB -> IDB -> AngleM Value -> IO [((Value, Env), Unif)]
 runAngleM edb idb m =
   let initialEnv = Map.empty
       initialUnif = (IntMap.empty,0)
-      logicState = observeAllT (runStateT (runStateT (runReaderT (runReaderT (m >>= zonk) edb) idb) initialEnv) initialUnif)
+      logicState = observeAllT (runStateT (runStateT (runReaderT (m >>= zonk) (DBs edb idb)) initialEnv) initialUnif)
   in logicState
 
 debugPrint :: String -> AngleM ()
-debugPrint msg = lift $ lift $ lift $ lift $ lift $ putStrLn msg
+debugPrint msg = lift $ lift $ lift $ lift $ putStrLn msg
 
 debugEnv :: AngleM ()
 debugEnv = do
-  env <- lift $ lift get
+  env <- lift get
   debugPrint $ "Env: " ++ show env
-  (unifMap,_) <- lift $ lift $ lift get
+  (unifMap,_) <- lift $ lift get
   debugPrint $ "Unif: " ++ show unifMap
 
 -- Semantics
