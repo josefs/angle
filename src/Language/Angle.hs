@@ -119,19 +119,23 @@ collectResults m = do
 localEnv :: AngleM a -> AngleM a
 localEnv m = do
   env <- lift get
+  unif <- lift $ lift get
+  lift $ put emptyEnv
+  lift $ lift $ put emptyUnif
   result <- m
   lift $ put env
+  lift $ lift $ put unif
   return result
+
+emptyEnv = Map.empty
+emptyUnif = (IntMap.empty,0)
 
 expandSet :: Set a -> AngleM a
 expandSet s = Set.foldr (\a m -> return a `mplus` m) mzero s
 
 runAngleM :: EDB -> IDB -> AngleM Value -> IO [((Value, Env), Unif)]
 runAngleM edb idb m =
-  let initialEnv = Map.empty
-      initialUnif = (IntMap.empty,0)
-      logicState = observeAllT (runStateT (runStateT (runReaderT (m >>= zonk) (DBs edb idb)) initialEnv) initialUnif)
-  in logicState
+  observeAllT (runStateT (runStateT (runReaderT (m >>= zonk) (DBs edb idb)) emptyEnv) emptyUnif)
 
 debugPrint :: String -> AngleM ()
 debugPrint msg = lift $ lift $ lift $ lift $ putStrLn msg
