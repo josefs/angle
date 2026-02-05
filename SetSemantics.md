@@ -23,6 +23,7 @@ I'm a little sloppy with notation above for the meaning of queries. But the cent
 
 # Semantics of Set constructs
 We extend the syntax of patterns to include two new constructs:
+
 $$ P ::= \dots\ |\ \text{elements}(p)\ |\ \text{all}(p) $$
 
 ### Notation for sets in Angle
@@ -36,5 +37,6 @@ $$ \{ \ \{| \text{1}  |\} \ ,\ \{| \text{2} |\} \} $$
 The general idea is that $\text{elements}$ takes a set as an argument and returns each elements in the set as a separate query. $\text{all}$ does the reverse. It takes all the query results of its argument and makes them into a single result which is a set containing all the results of the query.
 
 Formally, the semantics is as follows:
+
 $$ [[\ elements(p)\ ]]_\Delta = \{ v_{\Gamma} : set_\Gamma \in [[\ p\ ]]_\Delta, v \in set \} $$
 $$ [[\ \text{all}(p)\ ]]_\Delta = \{\ \{| \ v\  : \ v_\Gamma \in [[\ p\ ]]_\Delta |\}_{\cap \Gamma} \ \} $$
