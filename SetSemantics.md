@@ -5,7 +5,7 @@ The tricky bit is that whenever we combine the result of two patterns, the varia
 We use $\Omega$ to mean the set of all values in Angle.
 
 
-$$ [[ \cdot ]] :: \text{Pattern}, \text{Database} \rightarrow \{\text{Value},\text{Assignment)\}}$$
+$$ [[ \cdot ]] :: \text{Pattern}, \text{Database} \rightarrow \{(\text{Value},\text{Assignment})\}$$
 $$ [[\ v \ ]]_\Delta = \{ v_{\{\}} \} $$
 $$ [[\ X\ ]]_\Delta = \{ v_{X := v} | v \in \Omega \} $$
 $$ [[\ p_1\  |\ p_2\ ]]_\Delta = [[\ p_1\ ]]_\Delta \cup [[\ p_2\ ]]_\Delta $$
