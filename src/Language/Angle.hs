@@ -116,8 +116,8 @@ collectResults m = do
           Just (v, angle') -> rec (Set.insert v accum) angle'
   rec Set.empty m
 
-localEnv :: AngleM a -> AngleM a
-localEnv m = do
+freshEnv :: AngleM a -> AngleM a
+freshEnv m = do
   env <- lift get
   unif <- lift $ lift get
   lift $ put emptyEnv
@@ -127,8 +127,11 @@ localEnv m = do
   lift $ lift $ put unif
   return result
 
+emptyEnv :: Map k a
 emptyEnv = Map.empty
+emptyUnif :: (IntMap a, Int)
 emptyUnif = (IntMap.empty,0)
+
 
 expandSet :: Set a -> AngleM a
 expandSet s = Set.foldr (\a m -> return a `mplus` m) mzero s
@@ -198,12 +201,12 @@ sem Never = mzero
 fixPoint :: String -> Angle -> AngleM Value
 fixPoint pred angle = do
   set <- collectResults $
-          localEnv $
+          freshEnv $
           localPred pred [] $
           sem angle >>= zonk
   let fixP prev = do
         res <- collectResults $
-                localEnv $
+                freshEnv $
                 localPred pred (Set.toList prev) $
                 sem angle >>= zonk
         if prev == res
@@ -218,13 +221,13 @@ semiNaive pred angle = do
   -- That might be better for code generation.
   -- This is simpler though.
   set <- collectResults $
-          localEnv $
+          freshEnv $
           localPred pred [] $
           sem angle >>= zonk
   let deltaAngle = simplify (derivative pred angle)
   let semiN prev delta = do
         res <- collectResults $
-                localEnv $
+                freshEnv $
                 localPred pred (Set.toList prev) $
                 localPred (pred ++ "Delta") (Set.toList delta) $
                 sem deltaAngle >>= zonk
@@ -419,3 +422,10 @@ idb3 :: IDB
 idb3 = Map.fromList [("R",r2)]
 test3 :: IO [((Value, Env), Unif)]
 test3 = runAngleM edb2 idb3 (sem (Pred "R" (Pair (Num 1) y)))
+
+test6 :: IO [((Value, Env), Unif)]
+test6 = runAngleM edb2 Map.empty (sem $
+    Eq (Var "X") (All (Eq (Var "Y") (Num 1))) `Seq`
+    Eq (Var "Y") (Num 0) `Seq`
+    Var "X"
+  )
