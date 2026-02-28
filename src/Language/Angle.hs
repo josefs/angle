@@ -116,6 +116,26 @@ collectResults m = do
           Just (v, angle') -> rec (Set.insert v accum) angle'
   rec Set.empty m
 
+collectResultsZonked :: AngleM Value -> AngleM (Set Value)
+collectResultsZonked m = do
+  let rec accum angle = do
+        res <- msplit angle
+        case res of
+          Nothing -> return accum
+          Just (v, angle') -> do
+            v' <- zonk v
+            rec (Set.insert v' accum) angle'
+  rec Set.empty m
+
+localEnv :: AngleM a -> AngleM a
+localEnv m = do
+  env <- lift get
+  unif <- lift $ lift get
+  results <- m
+  lift $ put env
+  lift $ lift $ put unif
+  return results
+
 freshEnv :: AngleM a -> AngleM a
 freshEnv m = do
   env <- lift get
@@ -190,7 +210,7 @@ sem (Eq a1 a2) = do
   v1 <- sem a1
   v2 <- sem a2
   match v1 v2
-sem (All a) = VSet <$> collectResults (sem a)
+sem (All a) = VSet <$> localEnv (collectResultsZonked (sem a))
 sem (Elements a) = do
   v <- sem a
   case v of
@@ -337,6 +357,8 @@ simplify (Arr angles) =
 simplify (Seq a1 a2) = seq (simplify a1) (simplify a2)
 simplify (Eq a1 a2) = eq (simplify a1) (simplify a2)
 simplify (Pred name arg) = Pred name (simplify arg)
+-- These rules for All and Elements are not correct,
+-- as the don't preserve the locality of constraints inside All.
 simplify (All a) = case simplify a of
                       Elements sa -> sa
                       sa    -> All sa
