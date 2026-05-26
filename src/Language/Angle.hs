@@ -140,6 +140,10 @@ runAngleM :: EDB -> IDB -> AngleM Value -> IO [((Value, Env), Unif)]
 runAngleM edb idb m =
   observeAllT (runStateT (runStateT (runReaderT (m >>= zonk) (DBs edb idb)) emptyEnv) emptyUnif)
 
+runAngleMV :: EDB -> IDB -> AngleM Value -> IO [Value]
+runAngleMV edb idb m =
+  observeAllT (evalStateT (evalStateT (runReaderT (m >>= zonk) (DBs edb idb)) emptyEnv) emptyUnif)
+
 debugPrint :: String -> AngleM ()
 debugPrint msg = lift $ lift $ lift $ lift $ putStrLn msg
 
