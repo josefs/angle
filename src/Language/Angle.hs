@@ -390,10 +390,13 @@ seq :: Angle -> Angle -> Angle
 seq Never _ = Never
 seq _ Never = Never
 seq Unit a = a
+seq (Num _) a = a
 seq (Pair a b) c = seq a (seq b c)
 seq (Inl a) b = seq a b
 seq (Inr a) b = seq a b
 seq (Arr as) b = foldr seq b as
+seq Underscore b = b
+seq (Var _) b = b
 seq a1 a2 = Seq a1 a2
 
 -- Tests
